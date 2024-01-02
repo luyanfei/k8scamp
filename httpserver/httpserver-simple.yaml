@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+      labels:
+        app: simple
+    spec:
+      containers:
+        - name: simple
+          imagePullPolicy: Always
+          image: registry.cn-shanghai.aliyuncs.com/luyanfei/httpserver:v1.3-metrics
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            timeoutSeconds: 1
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "killall -INT httpserver"]
+          resources:
+            limits:
+              cpu: 700m
+              memory: 100Mi
+            requests:
+              cpu: 700m
+              memory: 100Mi
+          env:
+            - name: VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: httpserver-configmap
+                  key: "VERSION"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: simple
